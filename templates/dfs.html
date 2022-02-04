@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Image</title>
+</head>
+<body>
+    <form action="" method="POST">
+      <input type="submit" id ="mySubmit"/>
+      <input type="button" id="newg" onclick="Newg()" value="New Graph"/>
+    </form>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.7.3/socket.io.min.js"></script>
+    <script type="text/javascript">
+      var socket = io.connect({transports: ['websocket']});
+      var n,d;
+      socket.on('connect', function() {
+        socket.emit('dfs',{flag:0});
+        var form = $( 'form' ).on( 'submit', function( e ) {
+
+          e.preventDefault()
+          socket.emit( 'dfs',{flag :1,'n':n,'d':d})
+          document.getElementById("mySubmit").disabled = true;
+          document.getElementById("newg").disabled = true;
+        } );
+      } );
+      function Newg(){
+          socket.emit('dfs',{flag:0});
+          console.log("change");
+      }
+      socket.on('my-image-event', function( msg ) {
+            let arrayBufferView = new Uint8Array(msg['image_data']);
+            var blob = new Blob( [ arrayBufferView ], { type: "image/png" } );
+            var img_url = URL.createObjectURL(blob);
+            console.log(img_url);
+            $("#picture").attr("src", img_url);
+      } );
+      socket.on('submit1', function( msg ) {
+        document.getElementById("mySubmit").disabled = false;
+        document.getElementById("newg").disabled = false;
+        n=msg['n'];
+        d=msg['d'];
+      } );
+    </script>
+    <img id="picture" src="data:image/png;base64,{{ img_data }}">
+</body>
+</html>
