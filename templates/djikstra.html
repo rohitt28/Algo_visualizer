@@ -77,7 +77,7 @@
     </div>      
 </body>
     <script type="text/javascript">
-        var socket = io.connect({transports: ['websocket']});
+        var socket = io.connect('https://algoviz2.herokuapp.com/',{transports: ['websocket']});
         var n=0,d=1;
         var pause =1500;
         var imgarr=[];

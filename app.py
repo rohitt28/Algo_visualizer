@@ -175,4 +175,4 @@ def handle_my_custom_event(data):
     socketio.emit('submit4',{'n':n,'d':d,'flag':data['flag']}, room=session_id)
 
 if __name__ == '__main__':
-    socketio.run(app,debug=True)
+    socketio.run(app, port=int(os.environ.get('PORT', 5000)))
