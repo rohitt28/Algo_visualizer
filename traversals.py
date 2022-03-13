@@ -1,4 +1,7 @@
 from igraph import *
+from sortedcontainers import SortedSet
+import math
+import copy
 
 def DFS(g, vid, mode=OUT):
         nv = g.vcount()
@@ -63,3 +66,26 @@ def BFS(g, vid, mode=OUT):
         plott.append(("blue",vid))
     return (vids,plott)
 
+def dijkstra_sp(g, vid, d):
+    
+    nv=g.vcount()
+    plott=[]
+    dists=[math.inf for i in range(nv)]
+    plott.append([0,copy.deepcopy(dists)])
+
+    vids=SortedSet()
+    vids.add((0,vid))
+    dists[vid]=0
+
+    while vids:
+        vid = vids.pop(0)[1]
+        plott.append([1,"cyan",vid])
+        neighbors=g.neighbors(vid, mode=OUT)
+        for neighbor in neighbors:
+            if dists[neighbor]>dists[vid]+d[vid][neighbor]:
+                vids.discard((dists[neighbor],neighbor))
+                dists[neighbor]=dists[vid]+d[vid][neighbor]
+                vids.add((dists[neighbor],neighbor))
+                plott.append([2,"grey",neighbor,dists[vid]+d[vid][neighbor]])
+        plott.append([-1,vid])
+    return (dists,plott)

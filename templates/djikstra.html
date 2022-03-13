@@ -13,7 +13,7 @@
 </head>
 <body>
     <div style="width: 100%; height: 10vh; text-align: center;">
-        <h2>DFS<h2>
+        <h2>Dijkstra Shortest Path<h2>
     </div>
     <div style="width: 100%; height: 70vh; text-align: center;">
         <img id="picture" src="data:image/png;base64,{{ data[0] }}">
@@ -22,7 +22,8 @@
         <form id="form1"action="" method="POST">
             <div style="width: 30%; float:left">
                 <div>
-                <input type="checkbox" oninput="check(this.id,'undir')" id="dir" checked>
+                <input type="checkbox" oninput="check(this.id,'undir')" id="dir" 
+                checked>
                 <label>Directed</label>
                 </div>
                 <div>
@@ -31,13 +32,15 @@
                 </div>
             </div>
             <div style="width:30%; float:left">
-                <input class="btn btn-primary" type="submit" id ="mySubmit" style="margin-right: 10%;"/>
+                <input class="btn btn-primary" type="submit" id ="mySubmit" 
+                    style="margin-right: 10%;"/>
                 <button class="btn btn-primary" type="button" id="newg" 
                 data-toggle="modal" data-target="#myModal">New Graph</button>
             </div>
             <div class="slidecontainer" style="width: 10%; float:left">
                 <label>Speed</label>
-                <input oninput="setspeed()" id="speedinp" type="range" min="10" max="20" value="15">       
+                <input oninput="setspeed()" id="speedinp" type="range" min="10" 
+                    max="20" value="15">       
             </div>
         </form>
     </div>
@@ -73,70 +76,73 @@
         </div>    
     </div>      
 </body>
-<script type="text/javascript">
-    var socket = io.connect({transports: ['websocket']});
-    var n=0,d=1;
-    var pause =1500;
-    var imgarr=[];
-    socket.on('connect', function() {
-        var form = $( 'form' ).on( 'submit', function( e ) {
-            e.preventDefault()
-            socket.emit( 'dfs',{flag :1,'n':n,'d':d})
-            document.getElementById("mySubmit").disabled = true;
-            document.getElementById("newg").disabled = true;
-            document.getElementById("dir").disabled = true;
-            document.getElementById("undir").disabled = true;
+    <script type="text/javascript">
+        var socket = io.connect({transports: ['websocket']});
+        var n=0,d=1;
+        var pause =1500;
+        var imgarr=[];
+        var data={data};
+        socket.on('connect', function() {
+            var form = $( 'form' ).on( 'submit', function( e ) {
+                e.preventDefault();
+                socket.emit( 'dijkstra',{flag :1,'n':n,'d':d})
+                document.getElementById("mySubmit").disabled = true;
+                document.getElementById("newg").disabled = true;
+                document.getElementById("dir").disabled = true;
+                document.getElementById("undir").disabled = true;
+            } );
         } );
-    } );
-    socket.on('my-image-event', function( msg ) {
-        let arrayBufferView = new Uint8Array(msg['image_data']);
-        var blob = new Blob( [ arrayBufferView ], { type: "image/png" } );
-        var img_url = URL.createObjectURL(blob);
-        imgarr.push(img_url);
-    } );
-    socket.on('submit1', function( msg ) {
-        if(msg['flag']==1)
-            plot();
-        else{
-            $("#picture").attr("src", imgarr[0]);
+        socket.on('my-image-event4', function( msg ) {
+            let arrayBufferView = new Uint8Array(msg['image_data']);
+            var blob = new Blob( [ arrayBufferView ], { type: "image/png" } );
+            var img_url = URL.createObjectURL(blob);
+            imgarr.push(img_url);
+        } );
+        socket.on('submit4', function( msg ) {
+            if(msg['flag']==1)
+                plot();
+            else{
+                $("#picture").attr("src", imgarr[0]);
+                imgarr.splice(0, imgarr.length);
+            }
+            n=msg['n'];
+            d=msg['d'];
+        } );
+        function check(id,id1){
+            document.getElementById(id).checked = true;
+            document.getElementById(id1).checked = false;
+            d=0;
+            if(id=="dir"){
+                d=1;
+            }
+            socket.emit( 'dijkstra',{flag :-1,'n':n,'d':d});
+        }
+        function change(id){
+            var ID = parseInt(id);
+            if(ID<0){
+                ID*=-1;
+                console.log(ID);
+                ID=Math.floor(Math.random() * ID);
+            }
+            socket.emit( 'dijkstra',{flag :-1,'n':ID,'d':d});
+        }
+        function setspeed(){
+            pause=(30-document.getElementById("speedinp").value)*100;
+        }
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+        async function plot() {
+            for (let i = 1; i <imgarr.length ; i++) {        
+                $("#picture").attr("src", imgarr[i]);
+                await sleep(pause);
+            }
             imgarr.splice(0, imgarr.length);
+            document.getElementById("mySubmit").disabled = false;
+            document.getElementById("newg").disabled = false;
+            document.getElementById("dir").disabled = false;
+            document.getElementById("undir").disabled = false;
         }
-      n=msg['n'];
-      d=msg['d'];
-    } );
-    function check(id,id1){
-        document.getElementById(id).checked = true;
-        document.getElementById(id1).checked = false;
-        d=0;
-        if(id=="dir"){
-            d=1;
-        }
-        socket.emit( 'dfs',{flag :-1,'n':n,'d':d});
-    }
-    function change(id){
-        var ID = parseInt(id);
-        if(ID<0){
-            ID*=-1;
-            ID=Math.floor(Math.random() * ID);
-        }
-        socket.emit( 'dfs',{flag :-1,'n':ID,'d':d});
-    }
-    function setspeed(){
-        pause=(30-document.getElementById("speedinp").value)*100;
-    }
-    function sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
-    async function plot() {
-        for (let i = 1; i <imgarr.length ; i++) {        
-            $("#picture").attr("src", imgarr[i]);
-            await sleep(pause);
-        }
-        imgarr.splice(0, imgarr.length);
-        document.getElementById("mySubmit").disabled = false;
-        document.getElementById("newg").disabled = false;
-        document.getElementById("dir").disabled = false;
-        document.getElementById("undir").disabled = false;
-    }
-</script>
+    </script>
+    
 </html>
