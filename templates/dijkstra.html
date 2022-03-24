@@ -11,38 +11,72 @@
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.7.3/socket.io.min.js"></script>
 </head>
+<style>
+    table,
+    th,
+    td{
+        padding: 5px 10px;
+        border: 1px solid black;
+        border-collapse: collapse;
+    }
+</style>
 <body>
-    <div style="width: 100%; height: 10vh; text-align: center;">
-        <h2>Dijkstra Shortest Path<h2>
+    <div class="title">
+        <h2 style="margin-top: 1%; text-align: center;">Dijkstra Shortest Path<h2>
     </div>
-    <div style="width: 100%; height: 70vh; text-align: center;">
-        <img id="picture" src="data:image/png;base64,{{ data[0] }}">
+    <div id="mid">
+        <div class="index">
+            <p><img src="static/img/blue.png"> : Completely traversed Node</p>
+            <p><img src="static/img/cyan.png"> : Current Node</p>
+            <p><img src="static/img/grey.png"> : Visited Node</p>
+            <p><img src="static/img/white.png"> : Unvisited Node</p>
+        </div>
+        <div style="width:50%;height:100%; float: left;">
+            <img id="picture" style="height: 100%;" src="data:image/png;base64,{{ data[0] }}">
+        </div>
+        <div id="ind">
+            <h4 style="text-align: left; padding-top: 10%;">
+                Shortest Paths: </h4>
+            <table id="results">
+                <tr>
+                  <th>Vertex</th>
+                  <th>Distance</th>
+                </tr>
+            </table>
+        </div>
     </div>
-    <div style="width: 100%; height: 10vh; text-align: center;">
-        <form id="form1"action="" method="POST">
-            <div style="width: 30%; float:left">
-                <div>
-                <input type="checkbox" oninput="check(this.id,'undir')" id="dir" 
-                checked>
-                <label>Directed</label>
+    <div id="end">
+        <div style="width: 100%; height: 10vh; text-align: center;">
+            <p id="txt">
+            </p>
+        </div>
+        <div style="width: 100%; height: 10vh; text-align: center;">
+            <form id="form1" style="padding-left: 25%; padding-right: 0%;" method="POST">
+                <div style="width: 15%; float:left">
+                    <div>
+                    <input type="checkbox" oninput="check(this.id,'undir')" id="dir" checked>
+                    <label>Directed</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" oninput="check(this.id,'dir')" id="undir">
+                        <label >Undirected</label>
+                    </div>
                 </div>
-                <div>
-                    <input type="checkbox" oninput="check(this.id,'dir')" id="undir">
-                    <label >Undirected</label>
+                <div style="width:15%; float:left;">
+                    <label>Source: </label>
+                    <input id="src" size="1">
                 </div>
-            </div>
-            <div style="width:30%; float:left">
-                <input class="btn btn-primary" type="submit" id ="mySubmit" 
-                    style="margin-right: 10%;"/>
-                <button class="btn btn-primary" type="button" id="newg" 
-                data-toggle="modal" data-target="#myModal">New Graph</button>
-            </div>
-            <div class="slidecontainer" style="width: 10%; float:left">
-                <label>Speed</label>
-                <input oninput="setspeed()" id="speedinp" type="range" min="10" 
-                    max="20" value="15">       
-            </div>
-        </form>
+                <div style="width:25%; float:left">
+                    <input class="btn btn-primary" type="submit" value="Start" id ="mySubmit" style="margin-right: 10%;"/>
+                    <button class="btn btn-primary" type="button" id="newg" 
+                    data-toggle="modal" data-target="#myModal">New Graph</button>
+                </div>
+                <div class="slidecontainer" style="width: 10%; float:left">
+                    <label>Speed</label>
+                    <input oninput="setspeed()" id="speedinp" type="range" min="10" max="20" value="15">       
+                </div>
+            </form>
+        </div>
     </div>
     <div class="container">
         <div class="modal fade" id="myModal" role="dialog">
@@ -50,8 +84,8 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <div style="width: 85%; float: left;">
-                            <h4 class="modal-title" style="text-align:center;"
-                            >Choose any graph</h4>
+                            <h3 class="modal-title" style="text-align:center;"
+                            >Choose any graph</h3>
                         </div>
                         <div style="width: 15%; float: left;">
                             <button class="btn btn-primary" type="button" 
@@ -81,11 +115,31 @@
         var n=0,d=1;
         var pause =1500;
         var imgarr=[];
-        var data={data};
-        socket.on('connect', function() {
+        var result=[]
+        var text=[]
+        var allv=[]
+
+        document.getElementById("ind").style.visibility = "hidden";
+        $(window).on('load',function(){
+            $('#myModal').modal('show');
+        });
+        $('#myModal').modal({
+            backdrop: 'static',
+            keyboard: true
+        })
+        socket.once('connect', function() {
             var form = $( 'form' ).on( 'submit', function( e ) {
                 e.preventDefault();
-                socket.emit( 'dijkstra',{flag :1,'n':n,'d':d})
+                var src=document.getElementById("src").value;
+                var f=0;
+                for(let i=0; i <allv.length;i++){
+                    if(allv[i]==src)f=1;
+                }
+                if(f==0){
+                    alert("Invalid source node");
+                    return;
+                }
+                socket.emit( 'dijkstra',{flag :1,'n':n,'d':d, 'src':src})
                 document.getElementById("mySubmit").disabled = true;
                 document.getElementById("newg").disabled = true;
                 document.getElementById("dir").disabled = true;
@@ -97,6 +151,17 @@
             var blob = new Blob( [ arrayBufferView ], { type: "image/png" } );
             var img_url = URL.createObjectURL(blob);
             imgarr.push(img_url);
+            if(msg['result']){
+                var res=JSON.parse(msg['result']);
+                result.push(res);
+            }
+            if(msg['text']){
+                text.push(msg['text']);
+            }
+            if(msg['allvs']){
+                allv=JSON.parse(msg['allvs']);
+                $('#src').attr('value',allv[0]);
+            }
         } );
         socket.on('submit4', function( msg ) {
             if(msg['flag']==1)
@@ -115,15 +180,16 @@
             if(id=="dir"){
                 d=1;
             }
+            document.getElementById("ind").style.visibility = "hidden";
             socket.emit( 'dijkstra',{flag :-1,'n':n,'d':d});
         }
         function change(id){
             var ID = parseInt(id);
             if(ID<0){
                 ID*=-1;
-                console.log(ID);
                 ID=Math.floor(Math.random() * ID);
             }
+            document.getElementById("ind").style.visibility = "hidden";
             socket.emit( 'dijkstra',{flag :-1,'n':ID,'d':d});
         }
         function setspeed(){
@@ -133,11 +199,43 @@
             return new Promise(resolve => setTimeout(resolve, ms));
         }
         async function plot() {
-            for (let i = 1; i <imgarr.length ; i++) {        
+            document.getElementById("ind").style.visibility = "visible";
+            for (let i = 1; i <imgarr.length ; i++) {
+                document.getElementById("results").innerHTML="\
+                    <tr>\
+                    <th>Vertex</th>\
+                    <th>Distance</th>\
+                    </tr>";
+                if(text[i-1][0]==0){
+                    document.getElementById("txt").innerText="Initially all \
+                    the vertices are marked as unvisited."
+                }
+                else if(text[i-1][0]==1){
+                    document.getElementById("txt").innerText="Vertex "+
+                    text[i-1][1]+" is explored next as it has the minimum\
+                    distance amongst the unexplored vertices."
+                }
+                else if(text[i-1][0]==2){
+                    document.getElementById("txt").innerText="Vertex "+
+                    text[i-1][1]+" is completely explored."
+                }
+                else{
+                    document.getElementById("txt").innerText="";
+                }
+                for(let j =0; j <result[i-1].length;j++){
+                    document.getElementById("results").innerHTML+=
+                        "<tr>\
+                            <td>"+j+"</td>\
+                            <td>"+result[i-1][j]+"</td>\
+                        </tr>";
+                }   
                 $("#picture").attr("src", imgarr[i]);
                 await sleep(pause);
             }
+            text.splice(0, text.length);
             imgarr.splice(0, imgarr.length);
+            result.splice(0, result.length);
+            document.getElementById("txt").innerText="";
             document.getElementById("mySubmit").disabled = false;
             document.getElementById("newg").disabled = false;
             document.getElementById("dir").disabled = false;

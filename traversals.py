@@ -1,20 +1,16 @@
 from igraph import *
 from sortedcontainers import SortedSet
-import math
 import copy
 
 def DFS(g, vid, mode=OUT):
         nv = g.vcount()
         added = [False for v in range(nv)]
         stack = []
-
-        # prepare output
         vids = []
         parents = []
         plott=[]
         curr=[]
 
-        # ok start from vid
         stack.append((vid, g.neighbors(vid, mode=mode)))
         vids.append(vid)
         parents.append(vid)
@@ -25,10 +21,8 @@ def DFS(g, vid, mode=OUT):
             curr.append(vid)
             plott.append(("cyan",vid,1))
             if neighbors:
-                # Get next neighbor to visit
                 neighbor = neighbors.pop(0)
                 if not added[neighbor]:
-                    # Add hanging subtree neighbor
                     stack.append((neighbor, g.neighbors(neighbor, mode=mode)))
                     vids.append(neighbor)
                     parents.append(vid)
@@ -36,7 +30,6 @@ def DFS(g, vid, mode=OUT):
                     plott.append(("grey",vid,0))
                     plott.append(("cyan",neighbor,1))
             else:
-                # No neighbor found, end of subtree
                 stack.pop()
                 plott.append(("blue",vid,0))
 
@@ -52,25 +45,22 @@ def BFS(g, vid, mode=OUT):
     queue.append(vid)
     vids.append(vid)
     plott=[]
-    plott.append(("cyan",vid))
     while queue:
         vid = queue.pop(0)
-        plott.append(("grey",vid))
+        plott.append(("cyan",vid))
         neighbors=g.neighbors(vid, mode=mode)
         for neighbor in neighbors:
             if not added[neighbor]:
                 queue.append(neighbor)
                 added[neighbor]=True
                 vids.append(neighbor)
-                plott.append(("cyan",neighbor))       
+                plott.append(("grey",neighbor))       
         plott.append(("blue",vid))
     return (vids,plott)
 
-def dijkstra_sp(g, vid, d):
+def dijkstra_sp(g, vid,dists, d):
     
-    nv=g.vcount()
     plott=[]
-    dists=[math.inf for i in range(nv)]
     plott.append([0,copy.deepcopy(dists)])
 
     vids=SortedSet()

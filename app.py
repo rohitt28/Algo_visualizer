@@ -3,33 +3,32 @@ from igraph import *
 from traversals import*
 from graphs import*
 from PIL import Image
-import base64
-import io
-import os
 from flask_socketio import SocketIO
-import random
 from collections import defaultdict
+from sortedcontainers import SortedSet
+import io, os, json, random, base64
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'vnkdjnfjknfl1232#'
 socketio = SocketIO(app,transports= ['websocket'])
 socketio.init_app(app, cors_allowed_origins="*")
-def plotgraph(g, visual_style, session_id, event):
+def plotgraph(g, visual_style, res, session_id, event, text=None):
     plot(g, **visual_style, target='static/img/myfile.png')
     im = Image.open("static/img/myfile.png")
     data = io.BytesIO()
     im.save(data, "PNG")
     img_data = data.getvalue()
-    socketio.emit(event, {'image_data': img_data},room=session_id)
+    res=json.dumps(res)
+    socketio.emit(event, {'image_data': img_data, 'result':res ,'text':text}
+                ,room=session_id)
 
-def initplot(edges, k, session_id, event, weights=None):
-    g = Graph(edges, directed= k, edge_attrs=dict(weight=weights))
+def initplot(g, session_id, event, weights=None):
     nv = g.vcount()
     g.vs["name"] = [vi for vi in range(nv)]
     g.vs["color"]="white"
     layout = g.layout("kk")
     visual_style = {}
-    visual_style["vertex_size"] = 38
+    visual_style["vertex_size"] = 36
     visual_style["vertex_label"] = g.vs["name"]
     if weights:
         visual_style["edge_label"]=weights
@@ -41,8 +40,13 @@ def initplot(edges, k, session_id, event, weights=None):
     data = io.BytesIO()
     im.save(data, "PNG")
     img_data = data.getvalue()
-    socketio.emit(event, {'image_data': img_data}, room=session_id)
-    return (g,visual_style)
+    allvs=[]
+    for v in g.vs:
+        allvs.append(v['name'])
+    allvs=json.dumps(allvs)
+    socketio.emit(event, {'image_data': img_data, 'allvs':allvs}, 
+        room=session_id)
+    return visual_style
 
 def allplots(weighted):
     fdata=[]
@@ -89,17 +93,37 @@ def handle_my_custom_event(data):
     else:
         n=data['n']
         d=data['d']
+    vids=SortedSet()
+    g=Graph(allgraphs[n][0], directed= d)
 
-    g,visual_style =initplot(allgraphs[n][0],d,session_id,event)
+    visual_style =initplot(g, session_id,event)
     if(data['flag']==1):
-        d=DFS(g,0,mode=OUT)
+        d=DFS(g,int(data['src']),mode=OUT)
+        text=[0]
+        f=1
         for i in range(len(d[2])-1):
+            vid=-1
             if d[2][i] != d[2][i+1]:
                 g.vs[d[2][i][1]]["color"] = d[2][i][0]
+                tmpsize=len(vids)
+                vids.add(d[2][i][1])
+                if tmpsize!=len(vids):
+                    vid=d[2][i][1]
+                if d[2][i][0]=="blue":
+                    text=[2,d[2][i][1]]
+                elif d[2][i][0]=="cyan":
+                    if text[0]!=2:
+                        text=[1,d[2][i][1]]
+                else:
+                    text=[0]
+                if f==1:
+                    f=0
+                    text=[-1,d[2][i][1]]
                 if d[2][i][2]:
-                    plotgraph(g, visual_style, session_id, event)
+                    plotgraph(g, visual_style, vid, session_id, event, text)
+        text=[2,d[2][len(d[2])-1][1]]
         g.vs[d[2][len(d[2])-1][1]]["color"] = "Blue"
-        plotgraph(g, visual_style, session_id, event)
+        plotgraph(g, visual_style,-1, session_id, event, text)
     socketio.emit('submit1',{'n':n,'d':d,'flag':data['flag']}, room=session_id)
 
 @app.route('/bfs',methods=['GET', 'POST'])
@@ -118,12 +142,31 @@ def handle_my_custom_event(data):
     else:
         n=data['n']
         d=data['d']
-    g,visual_style =initplot(allgraphs[n][0],d,session_id,event)
+    vids=SortedSet()
+    g=Graph(allgraphs[n][0], directed= d)
+    
+    visual_style =initplot(g, session_id, event)
     if(data['flag']==1):
-        d=BFS(g,0,mode=OUT)
+        f=1
+        d=BFS(g,int(data['src']),mode=OUT)
         for i in d[1]:
+            vid=-1
+            text=[]
+            tmpsize=len(vids)
+            vids.add(i[1])
+            if tmpsize!=len(vids):
+                vid=i[1]
             g.vs[i[1]]["color"] = i[0]
-            plotgraph(g, visual_style, session_id, event)
+            if i[0]=="cyan":
+                text=[1,i[1]]
+            elif i[0]=="blue":
+                text=[2,i[1]]
+            else:
+                text=[0]
+            if f==1:
+                f=0
+                text=[-1,i[1]]
+            plotgraph(g, visual_style, vid, session_id, event, text)
     socketio.emit('submit2',{'n':n,'d':d,'flag':data['flag']}, room=session_id)
 
 @app.route('/dijkstra',methods=['GET', 'POST'])
@@ -142,37 +185,63 @@ def handle_my_custom_event(data):
     else:
         n=data['n']
         d=data['d']
-    g,visual_style =initplot(allgraphs[n][0],d,session_id,event,allgraphs[n][1])
+    g=Graph(allgraphs[n][0], directed= d, edge_attrs=dict(weight=allgraphs[n][1]))
+    res=[]
+    text=[]
+
+    for i in range(g.vcount()):
+        res.append('inf')
+    visual_style =initplot(g, session_id, event, allgraphs[n][1])
     if(data['flag']==1):
         wt = defaultdict(dict)
         for e in g.es():
             wt[e.source][e.target]=e["weight"]
             if not g.is_directed():
                 wt[e.target][e.source]=e["weight"]
-        d1=dijkstra_sp(g,0,wt)
+        dists=[math.inf for i in range(g.vcount())]
+        d1=dijkstra_sp(g,int(data['src']),dists,wt)
+        
         flag=0
         for i in d1[1]:
             if i[0]==0:
                 for j in range(len(i[1])):
                     g.vs[j]["name"]=i[1][j]
+                    if(i[1][j]==math.inf):
+                        i[1][j]='inf'
+                    res[j]=i[1][j]
+                    text=[0]
                 visual_style["vertex_label"] = g.vs["name"]
-                plotgraph(g, visual_style, session_id, event)
+                plotgraph(g, visual_style, res, session_id, event, text)
             elif i[0]==1:
                 if flag==0:
                     flag=1
                     g.vs[i[2]]["name"]=0
+                    res[i[2]]=0
                     visual_style["vertex_label"] = g.vs["name"]
                 g.vs[i[2]]["color"] = i[1]
-                plotgraph(g, visual_style, session_id, event)
+                if(i[1]=='cyan'):
+                    text=[1,i[2]]
+                else:
+                    text=[-1]
+                plotgraph(g, visual_style, res, session_id, event, text)
             elif i[0]==2:
                 g.vs[i[2]]["color"] = i[1]
                 g.vs[i[2]]["name"]=i[3]
+                if(i[3]==math.inf):
+                    i[3]='inf'
+                res[i[2]]=i[3]
+                if(i[1]=='cyan'):
+                    text=[1,i[2]]
+                else:
+                    text=[-1]
                 visual_style["vertex_label"] = g.vs["name"]
-                plotgraph(g, visual_style, session_id, event)
+                plotgraph(g, visual_style, res, session_id, event, text)
             elif i[0]==-1:
                 g.vs[i[1]]["color"] = "blue"
-                plotgraph(g, visual_style, session_id, event)
-    socketio.emit('submit4',{'n':n,'d':d,'flag':data['flag']}, room=session_id)
+                text=[2,i[1]]
+                plotgraph(g, visual_style, res, session_id, event, text)
+    socketio.emit('submit4',{'n':n,'d':d,'flag':data['flag']}, 
+            room=session_id)
 
 if __name__ == '__main__':
     socketio.run(app, port=int(os.environ.get('PORT', 5000)))
