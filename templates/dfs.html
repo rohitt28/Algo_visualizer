@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>DFS</title>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
@@ -23,7 +23,7 @@
             <p><img src="static/img/white.png"> : Unvisited Node</p>
         </div>
         <div style="width:50%;height:100%; float: left;">
-            <img id="picture" style="height: 100%;" src="data:image/png;base64,{{ data[0] }}">
+            <img id="picture" style="height: 100%;" src="">
         </div>
         <div id="ind" style="text-align: left; padding-top: 5%;">
             <h4>DFS Traversal: </h4>
@@ -73,10 +73,9 @@
                             >Choose any graph</h3>
                         </div>
                         <div style="width: 15%; float: left;">
-                            <button class="btn btn-primary" type="button" 
-                                id="{{data|length}}"
-                                onclick="change(-1*this.id)"
-                                data-dismiss="modal">Random</button>
+                            <button class="btn btn-primary" type="button"onclick="reset()"
+                            data-dismiss="modal" data-toggle="modal" data-target="#myModal2"
+                            >User Defined</button>
                             <button type="button" class="close" 
                                     data-dismiss="modal">&times;</button>
                         </div>
@@ -93,22 +92,38 @@
                 </div>
             </div>
         </div>    
-    </div>      
+    </div>
+    <div class="modal fade" id="myModal2" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" id="graphdata">
+
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 <script type="text/javascript">
-    var socket = io.connect('https://algoviz2.herokuapp.com/',{transports: ['websocket']});
-    var n=0,d=1;
+    var socket = io.connect({transports: ['websocket']});
+    var d=1;
+    var n=[];
     var pause =1500;
     var imgarr=[];
     var res=[];
-    var text=[]
-    var allv=[]
+    var text=[];
+    var allv=[];
+    var direct=1;
 
     document.getElementById("ind").style.visibility = "hidden";
     $(window).on('load',function(){
         $('#myModal').modal('show');
     });
-       $('#myModal').modal({
+    $('#myModal').modal({
         backdrop: 'static',
         keyboard: true
     })
@@ -125,6 +140,7 @@
                 return;
             }
             socket.emit( 'dfs',{flag :1,'n':n,'d':d,'src':src})
+            document.getElementById("src").disabled = true;
             document.getElementById("mySubmit").disabled = true;
             document.getElementById("newg").disabled = true;
             document.getElementById("dir").disabled = true;
@@ -143,7 +159,6 @@
         }
         if(msg['allvs']){
             allv=JSON.parse(msg['allvs']);
-            console.log(allv);
             $('#src').attr('value',allv[0]);
         }
     } );
@@ -165,7 +180,94 @@
             d=1;
         }
         document.getElementById("ind").style.visibility = "hidden";
-        socket.emit( 'dfs',{flag :-1,'n':n,'d':d});
+        socket.emit( 'dfs',{flag :0,'n':n,'d':d});
+    }
+    function check1(id){
+        document.getElementById(id).checked = true;
+        if(id=='newundir'){
+            document.getElementById('newdir').checked = false;
+        }
+        else{
+            document.getElementById('newundir').checked = false;
+        }
+    }
+    function addedges(){
+        var v1 =document.getElementById('addvertex').value;
+        var e1=document.getElementById('addedge').value;
+        if(v1<=0 || v1>10){
+            alert("No of vertices should be from 1 and 10.");
+            return;
+        }
+        if(e1==0){
+            alert("Min 1 edge required.");
+            return;
+        }
+        if(document.getElementById('newundir').checked){
+            direct=0;check('undir','dir');
+        }
+        else{
+            check('dir','undir');
+        }
+        document.getElementById('graphdata').innerHTML="\
+        <form id=edge>\
+        </form>";
+        for(let i =0; i <e1;i++){
+            document.getElementById('edge').innerHTML+="\
+            <label>Edge "+(i+1)+": </label>\
+            <input type='number' min='0' max="+(v1-1)+" id=s"+i+" >\
+            <input type='number' min='0' max="+(v1-1)+" id=d"+i+" ><br>";
+        }
+        document.getElementById('edge').innerHTML+="\
+        <button type=button onclick=setgraph("+e1+","+v1+") class= 'btn btn-primary'>\
+        Submit</button>";
+    }
+    function reset(){
+        document.getElementById('graphdata').innerHTML="\
+        <label>Enter number of vertices: </label>\
+        <input id= addvertex type=number min=1 max=10><br>\
+        <label>Enter number of edges: </label>\
+        <input id= addedge type=number min=1 max=10><br>\
+        <input id='newdir' type = checkbox onclick=check1(this.id) checked>\
+        <label>Directed</label>\
+        <input id='newundir' onclick=check1(this.id) type = checkbox>\
+        <label>Undirected</label><br>\
+        <button type=button onclick=addedges() class= 'btn btn-primary'>Submit</button>\
+        ";
+    }
+    function setgraph(n1,v1){
+        var srcs=[];
+        var dsts=[];
+        for(let i =0; i<n1;i++){
+            srcs.push(document.getElementById('s'+i).value);
+            dsts.push(document.getElementById('d'+i).value);
+        }
+        for(let i=0; i <n1;i++){
+            if(srcs[i]=='' || dsts[i]==''){
+                alert("Vertex Id cannot be empty.");
+                return;
+            }
+            else if(parseInt(srcs[i])>=v1 || parseInt(dsts[i])>=v1){
+                alert("Vertex Id out of range.");
+                return;
+            }
+            else if(parseInt(srcs[i])<0 || parseInt(dsts[i])<0){
+                alert("Vertex Id out of range.");
+                return;
+            }
+            for(let j =i+1; j <n1;j++){
+                if(srcs[i]==dsts[j] && dsts[i]==srcs[j]){
+                    if(direct==1){
+                        alert("Edges that can create multiedges during\
+ conversion from directed to undirected are not allowed.");
+                        return;
+                    }    
+                    alert("Same edge cannot be added twice.");
+                    return;
+                }
+            }
+        }
+        $('#myModal2').modal('hide');
+        socket.emit( 'dfs',{flag :-2,'srcs':srcs,'dsts':dsts,'d':direct});
     }
     function change(id){
         var ID = parseInt(id);
@@ -215,6 +317,7 @@
         res.splice(0,res.length);
         imgarr.splice(0, imgarr.length);
         document.getElementById("txt").innerText="";
+        document.getElementById("src").disabled = false;
         document.getElementById("mySubmit").disabled = false;
         document.getElementById("newg").disabled = false;
         document.getElementById("dir").disabled = false;
