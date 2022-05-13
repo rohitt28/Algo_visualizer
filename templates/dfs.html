@@ -97,6 +97,10 @@
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
+                    <div style="width: 85%; float: left;">
+                        <h3 class="modal-title" style="text-align:center;"
+                        >Enter Graph Data</h3>
+                    </div>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
@@ -215,23 +219,23 @@
             document.getElementById('edge').innerHTML+="\
             <label>Edge "+(i+1)+": </label>\
             <input type='number' min='0' max="+(v1-1)+" id=s"+i+" >\
-            <input type='number' min='0' max="+(v1-1)+" id=d"+i+" ><br>";
+            <input type='number' min='0' max="+(v1-1)+" id=d"+i+"><br><br>";
         }
         document.getElementById('edge').innerHTML+="\
-        <button type=button onclick=setgraph("+e1+","+v1+") class= 'btn btn-primary'>\
+        <button type=button style='margin-left:40%;' onclick=setgraph("+e1+","+v1+") class= 'btn btn-primary'>\
         Submit</button>";
     }
     function reset(){
         document.getElementById('graphdata').innerHTML="\
         <label>Enter number of vertices: </label>\
-        <input id= addvertex type=number min=1 max=10><br>\
+        <input id= addvertex type=number min=1 max=10><br><br>\
         <label>Enter number of edges: </label>\
-        <input id= addedge type=number min=1 max=10><br>\
+        <input id= addedge type=number min=1 max=10><br><br>\
         <input id='newdir' type = checkbox onclick=check1(this.id) checked>\
         <label>Directed</label>\
         <input id='newundir' onclick=check1(this.id) type = checkbox>\
-        <label>Undirected</label><br>\
-        <button type=button onclick=addedges() class= 'btn btn-primary'>Submit</button>\
+        <label>Undirected</label><br><br>\
+        <button style='margin-left:40%;' type=button onclick=addedges() class= 'btn btn-primary'>Submit</button>\
         ";
     }
     function setgraph(n1,v1){

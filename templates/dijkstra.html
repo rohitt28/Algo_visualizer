@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Dijkstra</title>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
@@ -32,7 +32,7 @@
             <p><img src="static/img/white.png"> : Unvisited Node</p>
         </div>
         <div style="width:50%;height:100%; float: left;">
-            <img id="picture" style="height: 100%;" src="data:image/png;base64,{{ data[0] }}">
+            <img id="picture" style="height: 100%;" src="">
         </div>
         <div id="ind">
             <h4 style="text-align: left; padding-top: 10%;">
@@ -88,10 +88,9 @@
                             >Choose any graph</h3>
                         </div>
                         <div style="width: 15%; float: left;">
-                            <button class="btn btn-primary" type="button" 
-                                id="{{data|length}}"
-                                onclick="change(-1*this.id)"
-                                data-dismiss="modal">Random</button>
+                            <button class="btn btn-primary" type="button"onclick="reset()"
+                             data-dismiss="modal" data-toggle="modal" data-target="#myModal2"
+                            >User Defined</button>
                             <button type="button" class="close" 
                                     data-dismiss="modal">&times;</button>
                         </div>
@@ -108,139 +107,257 @@
                 </div>
             </div>
         </div>    
-    </div>      
-</body>
-    <script type="text/javascript">
-        var socket = io.connect('https://algoviz2.herokuapp.com/',{transports: ['websocket']});
-        var n=0,d=1;
-        var pause =1500;
-        var imgarr=[];
-        var result=[]
-        var text=[]
-        var allv=[]
+    </div>
+    <div class="modal fade" id="myModal2" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div style="width: 85%; float: left;">
+                        <h3 class="modal-title" style="text-align:center;"
+                        >Enter Graph Data</h3>
+                    </div>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" id="graphdata">
 
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+<script type="text/javascript">
+    var socket = io.connect({transports: ['websocket']});
+    var d=1;
+    var n=[];
+    var pause =1500;
+    var imgarr=[];
+    var result=[];
+    var text=[];
+    var allv=[];
+    var direct=1;
+
+    document.getElementById("ind").style.visibility = "hidden";
+    $(window).on('load',function(){
+        $('#myModal').modal('show');
+    });
+    $('#myModal').modal({
+        backdrop: 'static',
+        keyboard: true
+    })
+    socket.once('connect', function() {
+        var form = $( 'form' ).on( 'submit', function( e ) {
+            e.preventDefault();
+            var src=document.getElementById("src").value;
+            var f=0;
+            for(let i=0; i <allv.length;i++){
+                if(allv[i]==src)f=1;
+            }
+            if(f==0){
+                alert("Invalid source node");
+                return;
+            }
+            socket.emit( 'dijkstra',{flag :1,'n':n,'d':d, 'src':src})
+            document.getElementById("src").disabled = true;
+            document.getElementById("mySubmit").disabled = true;
+            document.getElementById("newg").disabled = true;
+            document.getElementById("dir").disabled = true;
+            document.getElementById("undir").disabled = true;
+        } );
+    } );
+    socket.on('my-image-event4', function( msg ) {
+        let arrayBufferView = new Uint8Array(msg['image_data']);
+        var blob = new Blob( [ arrayBufferView ], { type: "image/png" } );
+        var img_url = URL.createObjectURL(blob);
+        imgarr.push(img_url);
+        if(msg['result']){
+            var res=JSON.parse(msg['result']);
+            result.push(res);
+        }
+        if(msg['text']){
+            text.push(msg['text']);
+        }
+        if(msg['allvs']){
+            allv=JSON.parse(msg['allvs']);
+            $('#src').attr('value',allv[0]);
+        }
+    } );
+    socket.on('submit4', function( msg ) {
+        if(msg['flag']==1)
+            plot();
+        else{
+            $("#picture").attr("src", imgarr[0]);
+            imgarr.splice(0, imgarr.length);
+        }
+        n=msg['n'];
+        d=msg['d'];
+    } );
+    function check(id,id1){
+        document.getElementById(id).checked = true;
+        document.getElementById(id1).checked = false;
+        d=0;
+        if(id=="dir"){
+            d=1;
+        }
         document.getElementById("ind").style.visibility = "hidden";
-        $(window).on('load',function(){
-            $('#myModal').modal('show');
-        });
-        $('#myModal').modal({
-            backdrop: 'static',
-            keyboard: true
-        })
-        socket.once('connect', function() {
-            var form = $( 'form' ).on( 'submit', function( e ) {
-                e.preventDefault();
-                var src=document.getElementById("src").value;
-                var f=0;
-                for(let i=0; i <allv.length;i++){
-                    if(allv[i]==src)f=1;
-                }
-                if(f==0){
-                    alert("Invalid source node");
+        socket.emit( 'dijkstra',{flag :0,'n':n,'d':d});
+    }
+    function check1(id){
+        document.getElementById(id).checked = true;
+        if(id=='newundir'){
+            document.getElementById('newdir').checked = false;
+        }
+        else{
+            document.getElementById('newundir').checked = false;
+        }
+    }
+    function addedges(){
+        var v1 =document.getElementById('addvertex').value;
+        var e1=document.getElementById('addedge').value;
+        if(v1<=0 || v1>10){
+            alert("No of vertices should be from 1 and 10.");
+            return;
+        }
+        if(e1<=0 || e1>10){
+            alert("No of edges should be from 1 and 10.");
+            return;
+        }
+        if(document.getElementById('newundir').checked){
+            direct=0;
+            check('undir','dir');
+        }
+        else{
+            check('dir','undir');
+        }
+        document.getElementById('graphdata').innerHTML="\
+        <form id=edge>\
+        </form>";
+        for(let i =0; i <e1;i++){
+            document.getElementById('edge').innerHTML+="\
+            <label>Edge "+(i+1)+": </label>\
+            <input type='number' min='0' max="+(v1-1)+" id=s"+i+" >\
+            <input type='number' min='0' max="+(v1-1)+" id=d"+i+" >\
+            <input type='number' min='0' max='1000' id=di"+i+"><br><br>";
+        }
+        document.getElementById('edge').innerHTML+="\
+        <button type=button style='margin-left:40%;' onclick=setgraph("+e1+","+v1+") class= 'btn btn-primary'>\
+        Submit</button>";
+    }
+    function reset(){
+        document.getElementById('graphdata').innerHTML="\
+        <label>Enter number of vertices: </label>\
+        <input id= addvertex type=number min=1 max=10><br><br>\
+        <label>Enter number of edges: </label>\
+        <input id= addedge type=number min=1 max=10><br><br>\
+        <input id='newdir' type = checkbox onclick=check1(this.id) checked>\
+        <label>Directed</label>\
+        <input id='newundir' onclick=check1(this.id) type = checkbox>\
+        <label>Undirected</label><br><br>\
+        <button style='margin-left:40%;' type=button onclick=addedges() class= 'btn btn-primary'>Submit</button>\
+        ";
+    }
+    function setgraph(n1,v1){
+        var srcs=[];
+        var dsts=[];
+        var dists=[];
+        for(let i =0; i<n1;i++){
+            srcs.push(document.getElementById('s'+i).value);
+            dsts.push(document.getElementById('d'+i).value);
+            dists.push(document.getElementById('di'+i).value);
+        }
+        for(let i=0; i <n1;i++){
+            if(srcs[i]=='' || dsts[i]==''){
+                alert("Vertex Id cannot be empty.");
+                return;
+            }
+            else if(parseInt(srcs[i])>=v1 || parseInt(dsts[i])>=v1){
+                alert("Vertex Id out of range.");
+                return;
+            }
+            else if(parseInt(srcs[i])<0 || parseInt(dsts[i])<0){
+                alert("Vertex Id out of range.");
+                return;
+            }
+            else if(dists[i]<0){
+                alert("Edge weight cannot be negative.");
+                return;
+            }
+            for(let j =i+1; j <n1;j++){
+                if(srcs[i]==dsts[j] && dsts[i]==srcs[j]){
+                    if(direct==1){
+                        alert("Edges that can create multiedges during\
+ conversion from directed to undirected are not allowed.");
+                        return;
+                    }    
+                    alert("Same edge cannot be added twice.");
                     return;
                 }
-                socket.emit( 'dijkstra',{flag :1,'n':n,'d':d, 'src':src})
-                document.getElementById("mySubmit").disabled = true;
-                document.getElementById("newg").disabled = true;
-                document.getElementById("dir").disabled = true;
-                document.getElementById("undir").disabled = true;
-            } );
-        } );
-        socket.on('my-image-event4', function( msg ) {
-            let arrayBufferView = new Uint8Array(msg['image_data']);
-            var blob = new Blob( [ arrayBufferView ], { type: "image/png" } );
-            var img_url = URL.createObjectURL(blob);
-            imgarr.push(img_url);
-            if(msg['result']){
-                var res=JSON.parse(msg['result']);
-                result.push(res);
             }
-            if(msg['text']){
-                text.push(msg['text']);
+        }
+        $('#myModal2').modal('hide');
+        socket.emit( 'dijkstra',{flag :-2,'srcs':srcs,'dsts':dsts,
+            'dists':dists,'d':direct});
+    }
+    function change(id){
+        var ID = parseInt(id);
+        if(ID<0){
+            ID*=-1;
+            ID=Math.floor(Math.random() * ID);
+        }
+        document.getElementById("ind").style.visibility = "hidden";
+        socket.emit( 'dijkstra',{flag :-1,'n':ID,'d':d});
+    }
+    function setspeed(){
+        pause=(30-document.getElementById("speedinp").value)*100;
+    }
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    async function plot() {
+        document.getElementById("ind").style.visibility = "visible";
+        for (let i = 1; i <imgarr.length ; i++) {
+            document.getElementById("results").innerHTML="\
+                <tr>\
+                <th>Vertex</th>\
+                <th>Distance</th>\
+                </tr>";
+            if(text[i-1][0]==0){
+                document.getElementById("txt").innerText="Initially all \
+                the vertices are marked as unvisited."
             }
-            if(msg['allvs']){
-                allv=JSON.parse(msg['allvs']);
-                $('#src').attr('value',allv[0]);
+            else if(text[i-1][0]==1){
+                document.getElementById("txt").innerText="Vertex "+
+                text[i-1][1]+" is explored next as it has the minimum\
+                distance amongst the unexplored vertices."
             }
-        } );
-        socket.on('submit4', function( msg ) {
-            if(msg['flag']==1)
-                plot();
+            else if(text[i-1][0]==2){
+                document.getElementById("txt").innerText="Vertex "+
+                text[i-1][1]+" is completely explored."
+            }
             else{
-                $("#picture").attr("src", imgarr[0]);
-                imgarr.splice(0, imgarr.length);
+                document.getElementById("txt").innerText="";
             }
-            n=msg['n'];
-            d=msg['d'];
-        } );
-        function check(id,id1){
-            document.getElementById(id).checked = true;
-            document.getElementById(id1).checked = false;
-            d=0;
-            if(id=="dir"){
-                d=1;
-            }
-            document.getElementById("ind").style.visibility = "hidden";
-            socket.emit( 'dijkstra',{flag :-1,'n':n,'d':d});
-        }
-        function change(id){
-            var ID = parseInt(id);
-            if(ID<0){
-                ID*=-1;
-                ID=Math.floor(Math.random() * ID);
-            }
-            document.getElementById("ind").style.visibility = "hidden";
-            socket.emit( 'dijkstra',{flag :-1,'n':ID,'d':d});
-        }
-        function setspeed(){
-            pause=(30-document.getElementById("speedinp").value)*100;
-        }
-        function sleep(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms));
-        }
-        async function plot() {
-            document.getElementById("ind").style.visibility = "visible";
-            for (let i = 1; i <imgarr.length ; i++) {
-                document.getElementById("results").innerHTML="\
-                    <tr>\
-                    <th>Vertex</th>\
-                    <th>Distance</th>\
+            for(let j =0; j <result[i-1].length;j++){
+                document.getElementById("results").innerHTML+=
+                    "<tr>\
+                        <td>"+j+"</td>\
+                        <td>"+result[i-1][j]+"</td>\
                     </tr>";
-                if(text[i-1][0]==0){
-                    document.getElementById("txt").innerText="Initially all \
-                    the vertices are marked as unvisited."
-                }
-                else if(text[i-1][0]==1){
-                    document.getElementById("txt").innerText="Vertex "+
-                    text[i-1][1]+" is explored next as it has the minimum\
-                    distance amongst the unexplored vertices."
-                }
-                else if(text[i-1][0]==2){
-                    document.getElementById("txt").innerText="Vertex "+
-                    text[i-1][1]+" is completely explored."
-                }
-                else{
-                    document.getElementById("txt").innerText="";
-                }
-                for(let j =0; j <result[i-1].length;j++){
-                    document.getElementById("results").innerHTML+=
-                        "<tr>\
-                            <td>"+j+"</td>\
-                            <td>"+result[i-1][j]+"</td>\
-                        </tr>";
-                }   
-                $("#picture").attr("src", imgarr[i]);
-                await sleep(pause);
-            }
-            text.splice(0, text.length);
-            imgarr.splice(0, imgarr.length);
-            result.splice(0, result.length);
-            document.getElementById("txt").innerText="";
-            document.getElementById("mySubmit").disabled = false;
-            document.getElementById("newg").disabled = false;
-            document.getElementById("dir").disabled = false;
-            document.getElementById("undir").disabled = false;
+            }   
+            $("#picture").attr("src", imgarr[i]);
+            await sleep(pause);
         }
+        text.splice(0, text.length);
+        imgarr.splice(0, imgarr.length);
+        result.splice(0, result.length);
+        document.getElementById("txt").innerText="";
+        document.getElementById("src").disabled = false;
+        document.getElementById("mySubmit").disabled = false;
+        document.getElementById("newg").disabled = false;
+        document.getElementById("dir").disabled = false;
+        document.getElementById("undir").disabled = false;
+    }
     </script>
     
 </html>

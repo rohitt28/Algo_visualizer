@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DSU</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.7.3/socket.io.min.js"></script>
+</head>
+<style>
+    #init-txt{
+        font-size: 20px;
+        font-weight: 550;
+    }
+</style>
+<body>
+    <div class="title">
+        <h2 style="margin-top: 1%; text-align: center;">Disjoint Set Union<h2>
+    </div>
+    <div id="mid">
+        <div id="pic" style="width:100%;height:100%;">
+            <img id="picture" style="height: 100%; width:20vw">
+        </div>
+    </div>
+    <div id="end">
+        <div style="width: 100%; height: 10vh; text-align: center;">
+            <p id="txt">
+            </p>
+        </div>
+        <div style="width: 100%; height: 10vh; text-align: center;">
+            <form id="form1" style="padding-left: 21%; padding-right: 0%;" method="POST">
+                <div style="width: 20%; float:left">
+                    <label>Operation: </label>
+                    <select id="opr" oninput="check(this.value)">
+                        <option value="make">Add Sets</option>
+                        <option value="find">Find Parent</option>
+                        <option value="merge">Merge Sets</option>
+                    </select>
+                </div>
+                <div id="allinp"style="width:16%; float:left;">
+                    <div id="inp1">
+                        <label id="in1">Set A: </label>
+                        <input id="src1" type="number" min="0" max="20">
+                    </div>
+                    <div id="inp2">
+                        <label id="in2">Set B: </label>
+                        <input id="src2" type="number" min="0" max="20">
+                    </div>
+                </div>
+                <div style="width:25%; float:left">
+                    <input class="btn btn-primary" type="submit" value="Start" id ="mySubmit" 
+                    style="margin-right: 10%;"/>
+                    <button class="btn btn-primary" onclick="Reset()" type="button" id="newg"
+                    >Reset</button>
+                </div>
+                <div class="slidecontainer" style="width: 10%; float:left">
+                    <label>Speed</label>
+                    <input oninput="setspeed()" id="speedinp" type="range" min="10" max="20" value="15">       
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+<script type="text/javascript">
+    var socket = io.connect({transports: ['websocket']});
+    var img;
+    var imgarr=[];
+    var pause =1500;
+    var v=0;
+    var result=[];
+    var text=[];
+    var edges=[];
+    var sizes=[];
+
+    $(window).on('load',function(){
+        check('make');
+        image();
+    });
+    function image(){
+        document.getElementById('pic').innerHTML=
+            "<div id='init-txt' style='padding-top:15%;'>\
+                Add some sets.\
+            </div>";
+    }
+    function check(val){
+        if(val=='find'){
+            document.getElementById("inp2").style.visibility = "hidden";
+            document.getElementById("in1").innerText = "Set:";
+            document.getElementById("src1").setAttribute('min',0);
+            document.getElementById("src1").value = 0;
+        }
+        else if(val=='make'){
+            document.getElementById("in1").innerText = "No. of Sets:";
+            document.getElementById("src1").setAttribute('min',1);
+            document.getElementById("src1").value = 1;
+            document.getElementById("inp2").style.visibility = "hidden";
+        }
+        else if(val=='merge'){
+            document.getElementById("in1").innerText = "Set A:";
+            document.getElementById("src1").setAttribute('min',0);
+            document.getElementById("src1").value = 0;
+            document.getElementById("src2").value = 0;
+            document.getElementById("inp2").style.visibility = "visible";
+        }
+    }
+    function Reset(){
+        v=0;
+        check('make');
+        sizes=[];
+        edges=[];
+        image();
+    }
+    function setspeed(){
+        pause=(30-document.getElementById("speedinp").value)*100;
+    }
+    socket.once('connect', function() {
+        var form = $( 'form' ).on( 'submit', function( e ) {
+            e.preventDefault();
+            var k= document.getElementById("opr").value;
+            var k1=document.getElementById("src1").value;
+            var k2=document.getElementById("src2").value;
+            var s1=0;
+            if(k=='make' && v+parseInt(k1)>8){
+                alert("Max 8 Sets allowed.");
+                return;
+            }
+            if(k!='make' && parseInt(k1)>=v){
+                alert("Vertex ID out of range.");
+                return;
+            }
+            else if(k=='merge' && parseInt(k2)>=v){
+                alert("Vertex ID out of range.");
+                return;
+            }
+            if(sizes.length)
+            s1=sizes
+            if(edges.length){
+                socket.emit('dsu',{'k':k,'k1':k1,'k2':k2,'v':v,'e':edges,'s':s1});
+            }
+            else
+            socket.emit('dsu',{'k':k,'k1':k1,'k2':k2,'v':v,'e':0,'s':s1});
+            document.getElementById("mySubmit").disabled = true;
+            document.getElementById("newg").disabled = true;
+        } );
+    } );
+    socket.on('my-image-event5', function( msg ) {
+        let arrayBufferView = new Uint8Array(msg['image_data']);
+        var blob = new Blob( [ arrayBufferView ], { type: "image/png" } );
+        var img_url = URL.createObjectURL(blob);
+        imgarr.push(img_url);
+        if(msg['text']){
+            text.push(msg['text']);
+        }
+    })
+    socket.on('submit5', function( msg ) {
+        if(msg['text'].length){
+            text.push(msg['text']);
+        }
+        plot();
+        v=msg['v'];
+        if(msg['e']!=0)
+        edges=msg['e']
+        sizes=msg['s'];
+    } );
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    async function plot() {
+        document.getElementById('pic').innerHTML="\
+        <img id='picture' style='height: 100%;'>";
+        for (let i = 0; i <imgarr.length ; i++) {
+            $("#picture").attr("src", imgarr[i]);
+            if(i!=imgarr.length-1){
+                if(text[i][0]==-1){
+                    document.getElementById("txt").innerText="Finding parent of vertex "+
+                    text[i][1]+".";
+                }
+                else if(text[i][0]==2){
+                    document.getElementById("txt").innerText="Parent = "+
+                    text[i][1];
+                }
+                else{
+                    document.getElementById("txt").innerText="";
+                }
+            }
+            if(i!=imgarr.length-1)
+            await sleep(pause);
+        }
+        if(imgarr.length==text.length){
+            if(text[text.length-1][2]==text[text.length-1][1]){
+                document.getElementById("txt").innerText="As both sets have common"+
+                " parent, the sets remain unchanged.";
+            }
+            else
+            document.getElementById("txt").innerText="as rank("+text[text.length-1][1]+")<= rank("+
+            text[text.length-1][2]+"), we will hang "+text[text.length-1][1]+
+            " under "+text[text.length-1][2]+".";
+            await sleep(pause);
+        }
+        text.splice(0, text.length);
+        imgarr.splice(0, imgarr.length);
+        document.getElementById("mySubmit").disabled = false;
+        document.getElementById("newg").disabled = false;
+    }
+    
+</script>
+</html>

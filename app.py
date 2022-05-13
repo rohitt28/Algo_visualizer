@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request
+from flask import Flask, jsonify, render_template, request
 from igraph import *
 from traversals import*
 from graphs import*
@@ -22,11 +22,12 @@ def plotgraph(g, visual_style, res, session_id, event, text=None):
     socketio.emit(event, {'image_data': img_data, 'result':res ,'text':text}
                 ,room=session_id)
 
-def initplot(g, session_id, event, weights=None):
+def initplot(g, session_id, event, weights=None, layout=None):
     nv = g.vcount()
     g.vs["name"] = [vi for vi in range(nv)]
     g.vs["color"]="white"
-    layout = g.layout("kk")
+    if layout==None:
+        layout = g.layout("kk")
     visual_style = {}
     visual_style["vertex_size"] = 36
     visual_style["vertex_label"] = g.vs["name"]
@@ -87,17 +88,30 @@ def handle_my_custom_event(data):
 
     event ='my-image-event'
     session_id=request.sid
-    if(data['flag']==0):
-        n=random.randint(0, 3)
-        d=data['d']
-    else:
+    vids=SortedSet()
+    if(data['flag']==-2):
+        srcs=data['srcs']
+        dsts=data['dsts']
+        edges=[]
+        for i in range(len(srcs)):
+            edges.append((int(srcs[i]),int(dsts[i])))
+        n = edges
+        d = int(data['d'])
+        g=Graph(edges, directed= d)
+        visual_style =initplot(g, session_id,event)
+    elif data['flag']==-1:
         n=data['n']
         d=data['d']
-    vids=SortedSet()
-    g=Graph(allgraphs[n][0], directed= d)
-
-    visual_style =initplot(g, session_id,event)
-    if(data['flag']==1):
+        n=allgraphs[n][0]
+        g=Graph(n, directed= d)
+        visual_style =initplot(g, session_id,event)
+    else:
+        n=json.loads(data['n'])
+        d=data['d']
+        g=Graph(n, directed= d)
+        visual_style =initplot(g, session_id,event)
+    n=json.dumps(n)
+    if data['flag']==1:
         d=DFS(g,int(data['src']),mode=OUT)
         text=[0]
         f=1
@@ -136,17 +150,30 @@ def handle_my_custom_event(data):
     
     event ='my-image-event2'
     session_id=request.sid
-    if(data['flag']==0):
-        n=random.randint(0, 3)
-        d=data['d']
-    else:
+    vids=SortedSet()
+    if(data['flag']==-2):
+        srcs=data['srcs']
+        dsts=data['dsts']
+        edges=[]
+        for i in range(len(srcs)):
+            edges.append((int(srcs[i]),int(dsts[i])))
+        n = edges
+        d = int(data['d'])
+        g=Graph(edges, directed= d)
+        visual_style =initplot(g, session_id,event)
+    elif data['flag']==-1:
         n=data['n']
         d=data['d']
-    vids=SortedSet()
-    g=Graph(allgraphs[n][0], directed= d)
-    
-    visual_style =initplot(g, session_id, event)
-    if(data['flag']==1):
+        n=allgraphs[n][0]
+        g=Graph(n, directed= d)
+        visual_style =initplot(g, session_id,event)
+    else:
+        n=json.loads(data['n'])
+        d=data['d']
+        g=Graph(n, directed= d)
+        visual_style =initplot(g, session_id,event)
+    n=json.dumps(n)
+    if data['flag']==1:
         f=1
         d=BFS(g,int(data['src']),mode=OUT)
         for i in d[1]:
@@ -179,20 +206,36 @@ def handle_my_custom_event(data):
 
     event ='my-image-event4'
     session_id=request.sid
-    if(data['flag']==0):
-        n=random.randint(0, 3)
-        d=data['d']
-    else:
+    vids=SortedSet()
+    if(data['flag']==-2):
+        srcs=data['srcs']
+        dsts=data['dsts']
+        dists=data['dists']
+        edges=[]
+        for i in range(len(srcs)):
+            edges.append((int(srcs[i]),int(dsts[i])))
+            dists[i]=int(dists[i])
+        n = [edges,dists]
+        d = int(data['d'])
+        g=Graph(n[0], directed= d, edge_attrs=dict(weight=n[1]))
+        visual_style =initplot(g, session_id,event, weights=n[1])
+    elif data['flag']==-1:
         n=data['n']
         d=data['d']
-    g=Graph(allgraphs[n][0], directed= d, edge_attrs=dict(weight=allgraphs[n][1]))
+        n=[allgraphs[n][0],allgraphs[n][1]]
+        g=Graph(n[0], directed=d, edge_attrs=dict(weight=n[1]))
+        visual_style =initplot(g, session_id,event, weights=n[1])
+    else:
+        n=json.loads(data['n'])
+        d=data['d']
+        g=Graph(n[0], directed=d, edge_attrs=dict(weight=n[1]))
+        visual_style =initplot(g, session_id,event, weights=n[1])
+    n=json.dumps(n)
     res=[]
     text=[]
-
     for i in range(g.vcount()):
         res.append('inf')
-    visual_style =initplot(g, session_id, event, allgraphs[n][1])
-    if(data['flag']==1):
+    if data['flag']==1:    
         wt = defaultdict(dict)
         for e in g.es():
             wt[e.source][e.target]=e["weight"]
@@ -243,5 +286,108 @@ def handle_my_custom_event(data):
     socketio.emit('submit4',{'n':n,'d':d,'flag':data['flag']}, 
             room=session_id)
 
+@app.route('/dsu',methods=['GET', 'POST'])
+def dsu():
+    return render_template("dsu.html")
+
+@socketio.on('dsu')
+def handle_my_custom_event(data):
+    g=Graph(directed=True)
+    event ='my-image-event5'
+    session_id=request.sid
+    v=0
+    e=[]
+    s={}
+    if data['v']:
+        v=data['v']
+    if data['e']:
+        e=json.loads(data['e'])
+    if data['s']:
+        s=json.loads(data['s'])
+    g.add_vertices(v)
+    if(e):
+        g.add_edges(e)
+    def dsufind(g,v):
+        visual_style = {}
+        layout = g.layout("rt")
+        visual_style["layout"] = layout
+        visual_style["bbox"] = (380, 380)
+        visual_style["margin"] = 20
+        visual_style["vertex_size"] = 38
+        nv = g.vcount()
+        g.vs["name"] = [vi for vi in range(nv)]
+        g.vs["color"]="white"
+        visual_style["vertex_label"] = g.vs["name"]
+        vids=SortedSet()
+        parent=v
+        d=DFS(g,v,mode=IN)
+        text=[0]
+        f=1
+        flagg=0
+        for i in range(len(d[2])-1):
+            vid=-1
+            if d[2][i] != d[2][i+1]:
+                g.vs[d[2][i][1]]["color"] = d[2][i][0]
+                tmpsize=len(vids)
+                vids.add(d[2][i][1])
+                if tmpsize!=len(vids):
+                    vid=d[2][i][1]
+                if d[2][i][0]=="blue":
+                    text=[2,d[2][i][1]]
+                    flagg=1
+                    parent=d[2][i][1]
+                elif d[2][i][0]=="cyan":
+                    if text[0]!=2:
+                        text=[1,d[2][i][1]]
+                else:
+                    text=[0]
+                if f==1:
+                    f=0
+                    text=[-1,d[2][i][1]]
+                if d[2][i][2] or flagg:
+                    plotgraph(g, visual_style, vid, session_id, event, text)
+                    if flagg:
+                        break
+        if len(d[2])==2:
+            g.vs[d[2][len(d[2])-1][1]]["color"] = "Blue"
+            text=[2,d[2][len(d[2])-1][1]]
+            plotgraph(g, visual_style,-1, session_id, event, text)
+        return parent
+    text=[]
+    if data['k']=='make':
+        g.add_vertices(int(data['k1']))
+        for i in range(int(data['k1'])):
+            s[v+i]=0
+        initplot(g,session_id,event,None,"rt")
+    elif data['k']=='find':
+        p=dsufind(g,int(data['k1']))
+    elif data['k']=='merge':
+        p1=int(data['k1'])
+        p1=dsufind(g,p1)
+        p2=int(data['k2'])
+        p2=dsufind(g,p2)
+        s1=s[str(p1)]
+        s2=s[str(p2)]
+        text=[3,p1,p2]
+        if p1!=p2:
+            if s1<=s2:
+                g.add_edge(p2,p1)
+                if s1==s2:
+                    s[str(p2)]+=1
+            else:
+                text=[3,p2,p1]
+                g.add_edge(p1,p2)
+    e1=[]
+    for a in g.es:
+        e1.append(a.tuple)
+    e=json.dumps(e1)
+    if data['k']!='make':
+        initplot(g,session_id,event,None,"rt")
+    s=json.dumps(s)
+    if(len(e1)):
+        socketio.emit('submit5',{'v':g.vcount(),'e':e,'text':text,'s':s}, room=session_id)
+    else:
+        socketio.emit('submit5',{'v':g.vcount(),'e':0,'text':text,'s':s}, room=session_id)
+
 if __name__ == '__main__':
-    socketio.run(app, port=int(os.environ.get('PORT', 5000)))
+    socketio.run(app, debug=True)

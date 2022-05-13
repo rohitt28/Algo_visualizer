@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Test Image</title>
+    <title>Home</title>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
 </head>
 <style>
@@ -13,50 +13,32 @@
         height: 10vh;
         background-color: #337AB7;
         color:white;
-        position: absolute;
-        top:0;
-    }
-    .mid{
-        width: 50vw;
-        position: absolute;
-        height: 60vh; 
-        top:30vh;
-        left:27vw;
+        margin-top:0%;
     }
     .link{
         float: left;
         width:20vw;
         height: 20vh;
     }
-    .a123{
+    .mid{
         height: 30%;
         font-size: 20px;
+        text-align: center;
+        margin-top: 10vw;
+    }
+    p{
+        margin:3vh;
     }
 </style>
 <body>
     <div class="title">
-        <h1 style="margin-top: 0.6%; text-align: center;">Algorithm Visualizer</h1>
+        <h1 style="margin-top: 0%; text-align: center;">Algorithm Visualizer</h1>
     </div>
     <div class="mid">
-        <div class="a123">
-            <div class="link">
-                <h3 style="margin-top: 0%; 
-                font-size:27px;font-weight:bold;">Graph Traversals:</h3>
-            </div>
-            <div class="link">
-                <p><a href="{{ url_for('dfs') }}"> Depth First Search </a></p>
-                <p><a href="{{ url_for('bfs') }}"> Breadth First Search </a></p>
-            </div>
-        </div>
-        <div class="a123">
-            <div class="link">
-                <h3 style="margin-top: 0%; 
-                font-size:27px;font-weight:bold;">Shortest Path:</h3>
-            </div>
-            <div class="link">
-                <p><a href="{{ url_for('dijkstra') }}"> Dijkstra's SP </a></p>
-            </div>
-        </div>
+        <p><a href="{{ url_for('dfs') }}"> Depth First Search </a></p>
+        <p><a href="{{ url_for('bfs') }}"> Breadth First Search </a></p>
+        <p><a href="{{ url_for('dijkstra') }}"> Dijkstra's SP </a></p>
+        <p><a href="{{ url_for('dsu') }}">Union Find</a></p>        
     </div>
 </body>
 </html>
