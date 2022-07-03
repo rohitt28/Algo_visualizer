@@ -66,7 +66,7 @@
     </div>
 </body>
 <script type="text/javascript">
-    var socket = io.connect({transports: ['websocket']});
+    var socket = io.connect('https://algoviz2.herokuapp.com/',{transports: ['websocket']});
     var img;
     var imgarr=[];
     var pause =1500;
@@ -113,6 +113,7 @@
         sizes=[];
         edges=[];
         image();
+        document.getElementById("txt").innerText="";
     }
     function setspeed(){
         pause=(30-document.getElementById("speedinp").value)*100;
